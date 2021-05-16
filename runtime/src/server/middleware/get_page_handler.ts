@@ -71,6 +71,7 @@ export function get_page_handler(
 		} = get_build_info();
 
 		res.setHeader('Content-Type', 'text/html');
+		res.statusCode = status;
 
 		// preload main js and css
 		// TODO detect other stuff we can preload like fonts?
