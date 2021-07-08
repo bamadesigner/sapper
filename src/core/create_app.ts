@@ -109,6 +109,25 @@ function generate_client_manifest(
 
 	let needs_decode = false;
 
+	const not_found = `{
+			// ${manifest_data.not_found.parts[manifest_data.not_found.parts.length - 1].component.file}
+			pattern: ${manifest_data.not_found.pattern},
+			parts: [
+				${manifest_data.not_found.parts.map(part => {
+					const missing_layout = !part;
+					if (missing_layout) return 'null';
+
+					if (part.params.length > 0) {
+						needs_decode = true;
+						const props = part.params.map(create_param_match);
+						return `{ i: ${component_indexes[part.component.name]}, params: match => ({ ${props.join(', ')} }) }`;
+					}
+
+					return `{ i: ${component_indexes[part.component.name]} }`;
+				}).join(',\n\t\t\t\t\t\t')}
+			]
+		}`.replace(/^\t/gm, '');
+
 	let routes = `[
 				${manifest_data.pages.map(page => `{
 					// ${page.parts[page.parts.length - 1].component.file}
@@ -146,6 +165,8 @@ function generate_client_manifest(
 		export const components = ${components};
 
 		export const routes = ${routes};
+
+		export const not_found = ${not_found};
 
 		${dev ? `if (typeof window !== 'undefined') {
 			import(${stringify(posixify(path.resolve(__dirname, '../sapper-dev-client.js')))}).then(client => {
@@ -224,7 +245,29 @@ function generate_server_manifest(
 			],
 
 			root_comp,
-			error
+			error,
+			not_found: {
+				// ${manifest_data.not_found.parts[manifest_data.not_found.parts.length - 1].component.file}
+				pattern: ${manifest_data.not_found.pattern},
+				parts: [
+					${manifest_data.not_found.parts.map(part => {
+						if (part === null) return 'null';
+
+						const props = [
+							`name: "${part.component.name}"`,
+							`file: ${stringify(part.component.file)}`,
+							`component: component_${component_lookup[part.component.name]}`
+						].filter(Boolean);
+
+						if (part.params.length > 0) {
+							const params = part.params.map(create_param_match);
+							props.push(`params: match => ({ ${params.join(', ')} })`);
+						}
+
+						return `{ ${props.join(', ')} }`;
+					}).join(',\n\t\t\t\t\t\t')}
+				]
+			}
 		};
 
 		export const build_dir = ${JSON.stringify(build_dir)};
@@ -280,7 +323,7 @@ function generate_app(manifest_data: ManifestData, path_to_routes: string) {
 		</script>
 
 		<Layout segment="{segments[0]}" {...level0.props}>
-			{#if error}
+			{#if error && status !== 404}
 				<Error {error} {status}/>
 			{:else}
 				${pyramid.replace(/\n/g, '\n\t\t\t\t')}

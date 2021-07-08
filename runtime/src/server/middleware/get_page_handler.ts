@@ -34,7 +34,7 @@ export function get_page_handler(
 
 	const has_service_worker = fs.existsSync(path.join(build_dir, 'service-worker.js'));
 
-	const { pages, error: error_route } = manifest;
+	const { pages, error: error_route, not_found: not_found_page } = manifest;
 
 	function bail(res: SapperResponse, err: Error | string) {
 		console.error(err);
@@ -46,12 +46,16 @@ export function get_page_handler(
 	}
 
 	function handle_error(req: SapperRequest, res: SapperResponse, statusCode: number, error: Error | string) {
-		handle_page({
-			pattern: null,
-			parts: [
-				{ name: null, component: { default: error_route } }
-			]
-		}, req, res, statusCode, error || 'Unknown error');
+		if (404 === statusCode) {
+			handle_page(not_found_page, req, res, 404, error || 'Page not found');
+		} else {
+			handle_page({
+				pattern: null,
+				parts: [
+					{ name: null, component: { default: error_route } }
+				]
+			}, req, res, statusCode, error || 'Unknown error');
+		}
 	}
 
 	async function handle_page(

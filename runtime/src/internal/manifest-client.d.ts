@@ -31,3 +31,4 @@ export const components: DOMComponentLoader[];
 export const ignore: RegExp[];
 export const root_comp: { preload: Preload };
 export const routes: Route[];
+export const not_found: Route;

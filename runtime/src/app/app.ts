@@ -76,13 +76,15 @@ export default function start(opts: {
 
 	start_prefetching();
 
-	if (initial_data.error) {
+	const is404 = initial_data.status === 404;
+
+	if (initial_data.error && !is404) {
 		return Promise.resolve().then(() => {
 			return handle_error();
 		});
 	}
 
-	return load_current_page();
+	return load_current_page(is404);
 }
 
 function handle_error() {
