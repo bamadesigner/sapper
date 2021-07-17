@@ -42,6 +42,8 @@ export default function create_manifest_data(cwd: string, extensions = '.svelte 
 		file: null
 	};
 
+	let not_found: Page;
+
 	function walk(
 		dir: string,
 		parent_segments: Part[][],
@@ -59,7 +61,10 @@ export default function create_manifest_data(cwd: string, extensions = '.svelte 
 
 				const file_ext = path.extname(basename);
 
-				if (basename[0] === '_') return null;
+				const is_404 = is_dir ? false : basename === '_404.svelte';
+
+				// Don't allow files that start with "_" except _404.
+				if (basename[0] === '_' && !is_404) return null;
 				if (basename[0] === '.' && basename !== '.well-known') return null;
 				if (!is_dir && !/^\.[a-z]+$/i.test(file_ext)) return null; // filter out tmp files etc
 
@@ -67,7 +72,6 @@ export default function create_manifest_data(cwd: string, extensions = '.svelte 
 				const ext = component_extension || file_ext;
 				const is_page = component_extension != null;
 				const segment = is_dir ? basename : basename.slice(0, -ext.length);
-
 
 				if (/\]\[/.test(segment)) {
 					throw new Error(`Invalid route ${file} — parameters must be separated`);
@@ -90,6 +94,7 @@ export default function create_manifest_data(cwd: string, extensions = '.svelte 
 					file: posixify(file),
 					is_dir,
 					is_index,
+					is_404,
 					is_page,
 					route_suffix
 				};
@@ -152,10 +157,17 @@ export default function create_manifest_data(cwd: string, extensions = '.svelte 
 					? stack.slice(0, -1).concat({ component, params })
 					: stack.concat({ component, params });
 
-				pages.push({
-					pattern: get_pattern(segments, true),
-					parts
-				});
+				if (item.is_404) {
+					not_found = {
+						pattern: get_pattern(segments, true),
+						parts
+					};
+				} else {
+					pages.push({
+						pattern: get_pattern(segments, true),
+						parts
+					});
+				}
 			} else {
 				server_routes.push({
 					name: `route_${get_slug(item.file)}`,
@@ -201,6 +213,7 @@ export default function create_manifest_data(cwd: string, extensions = '.svelte 
 	return {
 		root,
 		error,
+		not_found,
 		components,
 		pages,
 		server_routes

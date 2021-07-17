@@ -4,8 +4,10 @@ import {
 } from '../types';
 import {
 	ignore,
-	routes
+	routes,
+	not_found
 } from '@sapper/internal/manifest-client';
+import type { Route } from '@sapper/internal/manifest-client';
 import find_anchor from './find_anchor';
 import { Page, Query } from '@sapper/common';
 
@@ -28,13 +30,13 @@ export { _history as history };
 
 export const scroll_history: Record<string, ScrollPosition> = {};
 
-export function load_current_page(): Promise<void> {
+export function load_current_page(is404: boolean = false): Promise<void> {
 	return Promise.resolve().then(() => {
 		const { hash, href } = location;
 
 		_history.replaceState({ id: uid }, '', href);
 
-		const target = select_target(new URL(location.href));
+		const target = select_target(new URL(location.href), is404);
 		if (target) return navigate(target, uid, true, hash);
 	});
 }
@@ -93,12 +95,29 @@ export function extract_query(search: string): Query {
 		query;
 }
 
-export function select_target(url: URL): Target {
+function build_target(url: URL, route: Route, path: string, match: RegExpExecArray): Target {
+	const query = extract_query(url.search);
+	const part = route.parts[route.parts.length - 1];
+	const params = part.params ? part.params(match) : {};
+	const page: Page = { host: location.host, path, query, params };
+	return {
+		href: url.href,
+		route,
+		match,
+		page
+	};
+}
+
+export function select_target(url: URL, is404: boolean = false): Target {
 	if (url.origin !== location.origin) return null;
 	if (!url.pathname.startsWith(base_url)) return null;
 
-	let path = url.pathname.slice(base_url.length);
+	if (is404) {
+		const match = not_found.pattern.exec('/_404');
+		return build_target(url, not_found, '/_404', match);
+	}
 
+	let path: string = url.pathname.slice(base_url.length);
 	if (path === '') {
 		path = '/';
 	}
@@ -108,17 +127,9 @@ export function select_target(url: URL): Target {
 
 	for (let i = 0; i < routes.length; i += 1) {
 		const route = routes[i];
-
 		const match = route.pattern.exec(path);
-
 		if (match) {
-			const query = extract_query(url.search);
-			const part = route.parts[route.parts.length - 1];
-			const params = part.params ? part.params(match) : {};
-
-			const page: Page = { host: location.host, path, query, params };
-
-			return { href: url.href, route, match, page };
+			return build_target(url, route, path, match);
 		}
 	}
 }

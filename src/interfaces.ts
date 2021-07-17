@@ -56,6 +56,7 @@ export type Dirs = {
 export type ManifestData = {
 	root: PageComponent;
 	error: PageComponent;
+	not_found: Page;
 	components: PageComponent[];
 	pages: Page[];
 	server_routes: ServerRoute[];

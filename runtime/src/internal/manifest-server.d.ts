@@ -26,6 +26,7 @@ export interface Manifest {
 	ignore: RegExp[];
 	root_comp: SSRComponentModule
 	error: SSRComponent
+	not_found?: ManifestPage
 	pages: ManifestPage[]
 }
 
